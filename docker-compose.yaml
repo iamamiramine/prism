@@ -1,0 +1,28 @@
+version: '2.3'
+
+services:
+  audio-reactive-ldm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: audio-reactive-ldm
+    container_name: audio-reactive-ldm-container
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "0"
+      MKL_SERVICE_FORCE_INTEL: "1"
+      TORCH_USE_CUDA_DSA: "1"
+      CUDA_LAUNCH_BLOCKING: "1"
+    ports:
+      - "7500:80"
+    volumes:
+      - ./models:/app/models
+      - ./outputs:/app/outputs
+      - ./shared:/app/shared
+      - ./ldm:/app/ldm
+    runtime: nvidia
+    networks:
+      - audio-reactive-ldm-network
+
+networks:
+  audio-reactive-ldm-network:
+    external: true
