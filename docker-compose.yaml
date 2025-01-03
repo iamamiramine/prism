@@ -1,12 +1,12 @@
 version: '2.3'
 
 services:
-  audio-reactive-ldm:
+  prism:
     build:
-      context: .
+      context: ./backend_service/
       dockerfile: Dockerfile
-    image: audio-reactive-ldm
-    container_name: audio-reactive-ldm-container
+    image: prism
+    container_name: prism
     environment:
       NVIDIA_VISIBLE_DEVICES: "0"
       MKL_SERVICE_FORCE_INTEL: "1"
@@ -15,14 +15,27 @@ services:
     ports:
       - "7500:80"
     volumes:
-      - ./models:/app/models
-      - ./outputs:/app/outputs
-      - ./shared:/app/shared
-      - ./ldm:/app/ldm
+       - ./models:/app/models
+       - ./outputs:/app/outputs
+       - ./shared:/app/shared
     runtime: nvidia
     networks:
-      - audio-reactive-ldm-network
+      - prism-network
+
+  prism-stream:
+    build:
+      context: ./stream_service/
+      dockerfile: Dockerfile
+    image: prism-stream
+    container_name: prism-stream
+    ports:
+      - "7550:80"
+    volumes:
+       - ./shared:/app/shared
+    runtime: nvidia
+    networks:
+      - prism-network
 
 networks:
-  audio-reactive-ldm-network:
+  prism-network:
     external: true

@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 
-from src.api.controllers import (
+from api.controllers import (
     health_controller,
     generate_controller,
 )
-from src.handlers.exception_handler import add_exception_handlers
+from handlers.exception_handler import add_exception_handlers
 
 tags_metadata = [
     {
