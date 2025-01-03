@@ -30,6 +30,7 @@ services:
     container_name: prism-stream
     ports:
       - "7550:80"
+      - "5554:5554"
     volumes:
        - ./shared:/app/shared
     runtime: nvidia

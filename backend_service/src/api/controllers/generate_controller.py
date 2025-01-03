@@ -6,6 +6,7 @@ import asyncio
 import json
 from typing import Dict
 import base64
+import websockets
 
 from application.audio_reactive.services import generate_service
 from domain.models.audio_reactive.generate_models import GenerateAudioReactiveVideoParameters
@@ -66,46 +67,67 @@ def generate_audio_reactive_video(parameters: GenerateAudioReactiveVideoParamete
 @router.websocket("/webrtc")
 async def webrtc_endpoint(websocket: WebSocket):
     client_id = None
-    await websocket.accept()
     try:
+        await websocket.accept()
         while True:
-            data = await websocket.receive_json()
-            print(f"Received WebRTC message type: {data.get('type')}", flush=True)
-            
-            if data["type"] == "hello":
-                client_id = data["id"]
-                active_connections[client_id] = websocket
-                print(f"New client connected: {client_id}", flush=True)
+            try:
+                data = await websocket.receive_json()
+                msg_type = data.get('type')
+                print(f"Received WebRTC message type: {msg_type}", flush=True)
                 
-            elif data["type"] == "video":
-                if not client_id:
+                if not msg_type:
+                    print(f"Received message without type: {data}", flush=True)
                     continue
                     
-                # Convert hex string back to bytes
-                video_data = bytes.fromhex(data["data"])
-                print(video_data, flush=True)
-                
-                # Here you can process the video data
-                # For example, save it to a file or process it with your ML model
-                print(f"Received video data from client {client_id}, size: {len(video_data)} bytes", flush=True)
-                
-                # Send acknowledgment
-                await websocket.send_json({
-                    "type": "video_received",
-                    "size": len(video_data)
-                })
-                
-            elif "sdp" in data:
-                await websocket.send_json({
-                    "type": "sdp_response",
-                    "sdp": data["sdp"]
-                })
-                
-            elif "ice" in data:
-                await websocket.send_json({
-                    "type": "ice_response",
-                    "ice": data["ice"]
-                })
+                if msg_type == "hello":
+                    client_id = data["id"]
+                    active_connections[client_id] = websocket
+                    print(f"New client connected: {client_id}", flush=True)
+                    
+                elif msg_type == "video":
+                    if not client_id:
+                        continue
+                        
+                    # Convert hex string back to bytes
+                    video_data = bytes.fromhex(data["data"])
+                    print(f"Received video data from client {client_id}, size: {len(video_data)} bytes", flush=True)
+                    
+                    # Send acknowledgment
+                    await websocket.send_json({
+                        "type": "video_received",
+                        "size": len(video_data)
+                    })
+                    
+                elif msg_type == "sdp":
+                    sdp = data.get('sdp', {})
+                    sdp_type = sdp.get('type')
+                    print(f"Handling SDP message type: {sdp_type}", flush=True)
+                    
+                    # Echo back the SDP with our response
+                    await websocket.send_json({
+                        "type": "sdp_response",
+                        "sdp": {
+                            "type": "answer",
+                            "sdp": sdp.get('sdp', '')
+                        }
+                    })
+                    
+                elif msg_type == "ice":
+                    ice = data.get('ice', {})
+                    print(f"Handling ICE candidate: {ice.get('candidate')}", flush=True)
+                    await websocket.send_json({
+                        "type": "ice_response",
+                        "ice": ice
+                    })
+                    
+            except json.JSONDecodeError as e:
+                print(f"Received invalid JSON: {e}", flush=True)
+            except websockets.exceptions.ConnectionClosed:
+                print(f"Client {client_id} connection closed", flush=True)
+                break
+            except Exception as e:
+                print(f"Error processing message: {str(e)}", flush=True)
+                traceback.print_exc()
                 
     except Exception as e:
         print(f"WebRTC Error: {str(e)}", flush=True)
@@ -113,4 +135,4 @@ async def webrtc_endpoint(websocket: WebSocket):
     finally:
         if client_id and client_id in active_connections:
             del active_connections[client_id]
-        await websocket.close()
+            print(f"Removed client {client_id} from active connections", flush=True)

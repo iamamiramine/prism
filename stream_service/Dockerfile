@@ -35,4 +35,5 @@ RUN cd scripts && npm install
 
 RUN cd ..
 
-CMD ["sleep", "infinity"]
+#CMD ["sleep", "infinity"]
+CMD ["node", "scripts/index.js"]
